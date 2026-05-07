@@ -20,40 +20,160 @@ interface ChatContext {
   situation?: string;
   desiredOutcome?: string;
   feelings?: string;
-  photos?: string[]; // base64 encoded photos
+  photos?: string[];
 }
 
-function buildSystemPrompt(context?: ChatContext): string {
-  let prompt = `Você é um mentor de relacionamentos altamente empático, analítico e equilibrado. Sua missão é guiar o usuário através de dilemas emocionais, conflitos de comunicação e dinâmicas de casal, oferecendo conselhos práticos e psicologicamente fundamentados.
+// Prompts integrados (para edge runtime sem acesso ao filesystem)
+const SYSTEM_PROMPT = `# Sistema do Mentor de Relacionamentos
+
+## Identidade
+Você é um assistente de apoio emocional e análise de relacionamento.
+
+## Objetivo
+- Ajudar o usuário a entender a situação com clareza.
+- Reduzir ansiedade.
+- Evitar ações impulsivas.
+- Ajudar o usuário a manter dignidade, limites e autocontrole.
+- Diferenciar interesse real, carência, conveniência e desinteresse.
+- Dar respostas práticas, diretas e aplicáveis.
+
+## Limites Éticos
+Você NÃO é terapeuta clínico.
+Você NÃO diagnostica transtornos.
+Você NÃO incentiva manipulação emocional.
+Você NÃO ensina jogos tóxicos.
+Você NÃO reforça dependência emocional.
+
+## Prioridade de Resposta
+1. Segurança emocional do usuário.
+2. Clareza factual.
+3. Limites saudáveis.
+4. Ação prática.
+5. Respeito pela outra pessoa.`;
+
+const PERSONALITY_PROMPT = `# Personalidade do Mentor
 
 ## Tom de Voz
-- Empático, mas Objetivo: Valide os sentimentos do usuário, mas aponte comportamentos que podem ser melhorados.
-- Calmo e Acolhedor: Use linguagem que reduza a ansiedade.
-- Elegante e Profissional: Mantenha um tom de consultoria premium.
+- Direto.
+- Firme.
+- Humano.
+- Sem romantizar.
+- Sem motivação vazia.
+- Com linguagem simples e forte.
 
-## Estrutura de Resposta
-1. Escuta Ativa: Demonstre que entendeu o contexto emocional.
-2. Análise de Perspectiva: Considere o outro lado da relação.
-3. Desconstrução do Problema: Identifique o gatilho real (insegurança, falha de comunicação, etc).
-4. Plano de Ação: Forneça scripts de conversa e passos práticos.
+## Estilo de Resposta
+- Markdown.
+- Títulos claros.
+- Diagnóstico objetivo.
+- Separar fato de interpretação.
+- Usar frases curtas.
+- Dar próximos passos.
 
-## Princípios
-- Promova a Comunicação Não-Violenta (CNV).
-- Foque na Auto-Responsabilidade.
-- Se houver relato de abuso ou violência, recomende ajuda profissional e autoridades imediatamente.`;
+## Proibido Responder
+- "faz o que seu coração mandar"
+- "talvez ela só esteja ocupada"
+- "manda mais uma mensagem"
+- "luta por ela"
 
+## Obrigatório Incluir
+- Leitura objetiva
+- Riscos
+- Melhor ação
+- O que não fazer
+- Próxima ação`;
+
+const FRAMEWORK_PROMPT = `# Framework de Análise
+
+## 1. Fato vs Interpretação
+Sempre separar:
+- **Fato**: o que aconteceu.
+- **Interpretação**: o que o usuário está imaginando.
+- **Ação recomendada**: o que fazer com base nos fatos.
+
+## 2. Interesse Real vs Carência vs Conveniência
+**Interesse Real:** Iniciativa, consistência, esforço equilibrado.
+**Carência:** Procura quando está mal, some quando melhora.
+**Conveniência:** Aceita favores, pouca reciprocidade.
+
+## 3. Baixa Atração
+Sinais: evita carinho, não beija, fica no celular.
+
+## 4. Regra Central
+**Nunca aumentar investimento quando o retorno está baixo.**`;
+
+const DECISION_PROMPT = `# Regras de Decisão
+
+## Ansiedade
+NÃO recomendar mensagem longa nem conversa séria imediata.
+Recomendar: pausa, respiração, atividade física.
+
+## Pessoa Fria
+Reduzir investimento. Não perseguir. Observar.
+
+## Textão
+Reduzir para 1 frase firme. Remover justificativas.
+
+## Padrão de Sofrimento
+Recomendar afastamento claro. Proteger usuário.
+
+## Interesse Real
+Responder leve. Manter reciprocidade.`;
+
+const RESPONSE_STYLE_PROMPT = `# Formato de Resposta
+
+## Estrutura Obrigatória
+
+### 📊 Leitura objetiva
+Explique os fatos.
+
+### 🧠 O que isso significa
+Explique a dinâmica emocional.
+
+### ⚠️ Risco
+Mostre o erro provável.
+
+### 🧭 O que fazer agora
+Dê ação clara.
+
+### 💬 Se precisar responder
+Dê uma frase pronta.
+
+### 🔒 Regra de ouro
+Uma frase memorável.
+
+### Próxima ação
+Uma linha prática.`;
+
+const MESSAGE_COACH_PROMPT = `# Coach de Mensagens
+
+## Regras
+- Curta (máximo 2 linhas)
+- Sem cobrança
+- Sem carência
+- Sem explicar demais
+
+## Exemplos Bons
+- "vou ser sincero, isso não tá me fazendo bem. prefiro me afastar"
+- "e aí, ficou bem depois de hoje?"
+- "bom dia 😄 tudo certo?"
+- "acho melhor não hoje… tô precisando de um tempo"`;
+
+function buildSystemPrompt(context?: ChatContext): string {
+  // Combina todos os prompts do sistema
+  let prompt = `${SYSTEM_PROMPT}\n\n${PERSONALITY_PROMPT}\n\n${FRAMEWORK_PROMPT}\n\n${DECISION_PROMPT}\n\n${RESPONSE_STYLE_PROMPT}\n\n${MESSAGE_COACH_PROMPT}`;
+
+  // Adiciona contexto personalizado
   if (context) {
-    prompt += `\n\n## Contexto Personalizado do Usuário\n`;
-    if (context.userName) prompt += `- Nome do usuário: ${context.userName}\n`;
-    if (context.partnerName) prompt += `- Nome da pessoa: ${context.partnerName}\n`;
-    if (context.relationshipType) prompt += `- Tipo de relacionamento: ${context.relationshipType}\n`;
-    if (context.situation) prompt += `- Situação atual: ${context.situation}\n`;
-    if (context.desiredOutcome) prompt += `- Resultado desejado: ${context.desiredOutcome}\n`;
-    if (context.feelings) prompt += `- Como se sente: ${context.feelings}\n`;
+    prompt += `\n\n## Contexto do Usuário\n`;
+    if (context.userName) prompt += `- Nome: ${context.userName}\n`;
+    if (context.partnerName) prompt += `- Pessoa: ${context.partnerName}\n`;
+    if (context.relationshipType) prompt += `- Relacionamento: ${context.relationshipType}\n`;
+    if (context.situation) prompt += `- Situação: ${context.situation}\n`;
+    if (context.desiredOutcome) prompt += `- Objetivo: ${context.desiredOutcome}\n`;
+    if (context.feelings) prompt += `- Sentimento: ${context.feelings}\n`;
     if (context.photos && context.photos.length > 0) {
-      prompt += `- Fotos foram compartilhadas para análise de contexto\n`;
+      prompt += `- Fotos: ${context.photos.length} foto(s) anexada(s)\n`;
     }
-    prompt += `\nUse esse contexto para personalizar suas respostas. Seja específico e relevante à situação do usuário.`;
   }
 
   return prompt;
@@ -65,77 +185,161 @@ function getMockResponse(messages: any[], context?: ChatContext): string {
   const userName = context?.userName || "";
   const partnerName = context?.partnerName || "a pessoa";
   
-  const greetings = [
-    `Olá${userName ? `, ${userName}` : ""}! Entendo que está passando por algo desafiador com ${partnerName}. Vamos trabalhar juntos nisso.`,
-    `Oi${userName ? ` ${userName}` : ""}! Obrigado por compartilhar isso comigo. Situações como essa com ${partnerName} são realmente complexas.`,
-    `Olá${userName ? `, ${userName}` : ""}! Estou aqui para ajudar você a navegar por essa situação com ${partnerName}.`,
-  ];
-  
-  if (lastMessage.includes("oi") || lastMessage.includes("olá") || lastMessage.includes("hello")) {
-    return greetings[Math.floor(Math.random() * greetings.length)];
+  // Saudação personalizada
+  if (lastMessage.includes("oi") || lastMessage.includes("olá") || lastMessage.includes("hello") || messages.length <= 2) {
+    return `### 📊 Leitura objetiva
+Você está começando uma conversa${userName ? `, ${userName}` : ""}. Estou aqui para ajudar a navegar a situação com ${partnerName}.
+
+### 🧠 O que isso significa
+Você busca clareza sobre uma dinâmica emocional. Isso já é um passo importante.
+
+### ⚠️ Risco
+Agir por impulso antes de entender os fatos reais.
+
+### 🧭 O que fazer agora
+Descreva brevemente a situação. O que aconteceu exatamente?
+
+### 💬 Se precisar responder
+"Oi, tudo bem? Como foi seu dia?"
+
+### 🔒 Regra de ouro
+**Fatos primeiro, interpretação depois.**
+
+### Próxima ação
+Me conte o que aconteceu na última interação com ${partnerName}.`;
   }
   
-  if (lastMessage.includes("não responde") || lastMessage.includes("ignorou") || lastMessage.includes("silêncio")) {
-    return `Entendo que a ansiedade bate forte nessas horas${userName ? `, ${userName}` : ""}. Respire fundo. O silêncio raramente é sobre você, pode ser apenas a rotina dele/dela. Antes de mandar outra mensagem, vamos focar em algo que você controla?
+  // Não responde / silêncio
+  if (lastMessage.includes("não responde") || lastMessage.includes("ignorou") || lastMessage.includes("silêncio") || lastMessage.includes("visualizou")) {
+    return `### 📊 Leitura objetiva
+${partnerName} visualizou e não respondeu. Tempo decorrido: algumas horas.
 
-**Análise:** Você está externalizando sua segurança emocional na resposta de ${partnerName}.
+### 🧠 O que isso significa
+Você está externalizando sua segurança emocional na resposta de ${partnerName}. Ansiedade de abandono ativada.
 
-**Plano de Ação:**
-1. Espere 24h antes de enviar nova mensagem
-2. Não mande mensagens emocionais no calor do momento
-3. Use esse tempo para se centrar - faça algo que te faça bem
+### ⚠️ Risco
+Mandar mensagem no calor, parecer cobrança, reforçar desequilíbrio.
 
-**Script para depois:** "Oi ${partnerName}, tudo bem? Só queria saber como foi seu dia." (Simples, sem cobrança)`;
+### 🧭 O que fazer agora
+1. Respire fundo 3 vezes
+2. Não mande mais nada hoje
+3. Faça outra atividade (banho, caminhada, trabalho)
+
+### 💬 Se precisar responder (depois de 24h)
+"Oi ${partnerName}, tudo bem? Só queria saber como foi seu dia."
+
+### 🔒 Regra de ouro
+**Silêncio raramente é sobre você. Pode ser rotina, sono, trabalho.**
+
+### Próxima ação
+Desligue as notificações de ${partnerName} por 24 horas. Observe como se sente.`;
   }
   
+  // Ciúme / Insegurança
   if (lastMessage.includes("ciúme") || lastMessage.includes("insegurança") || lastMessage.includes("desconfiança")) {
-    return `Sinto muito que esteja se sentindo assim${userName ? `, ${userName}` : ""}. A insegurança é um gatilho comum, mas precisamos entender a raiz.
+    return `### 📊 Leitura objetiva
+Você sente ciúme/insegurança em relação a ${partnerName}.
 
-**Análise:** O ciúme geralmente vem de:
-- Experiências passadas não resolvidas
-- Baixa autoestima
-- Falta de comunicação no relacionamento
+### 🧠 O que isso significa
+O ciúme geralmente vem de: experiências passadas não resolvidas, baixa autoestima, ou falta de comunicação.
 
-**Plano de Ação:**
-1. Reflita: Esse ciúme tem base em fatos ou suposições?
-2. Comunique seus sentimentos sem acusações: "Eu me sinto inseguro quando..." em vez de "Você sempre..."
-3. Trabalhe sua autoestima - o ciúme diminui quando nos sentimos seguros conosco
+### ⚠️ Risco
+Vigilância, cobrança, acusações sem fundamento. Isso afasta.
 
-Lembre-se: confiança é construída com transparência, não vigilância.`;
+### 🧭 O que fazer agora
+1. Pergunte-se: "Isso tem base em FATOS ou suposições?"
+2. Liste 3 fatos concretos vs 3 interpretações suas
+3. Trabalhe sua autoestima (isso resolve mais que controlar o outro)
+
+### 💬 Se precisar falar sobre isso
+"Quando acontece X, eu me sinto inseguro. Não é sobre você, é algo meu que estou trabalhando."
+
+### 🔒 Regra de ouro
+**Confiança é construída com transparência, não vigilância.**
+
+### Próxima ação
+Antes de questionar ${partnerName}, regule sua emoção sozinho primeiro.`;
   }
   
-  if (lastMessage.includes("terminar") || lastMessage.includes("término") || lastMessage.includes("acabou")) {
-    return `Entendo que está considerando terminar${userName ? `, ${userName}` : ""}. Essa é uma decisão importante que merece reflexão.
+  // Terminar / Término
+  if (lastMessage.includes("terminar") || lastMessage.includes("término") || lastMessage.includes("acabou") || lastMessage.includes("cabo")) {
+    return `### 📊 Leitura objetiva
+Você está considerando terminar com ${partnerName}.
 
-**Antes de decidir, pergunte-se:**
-1. Já tentamos resolver os problemas juntos?
-2. O que meu parceiro precisa que eu mude?
-3. O que eu preciso que meu parceiro mude?
-4. Estou considerando término por impulso ou reflexão genuína?
+### 🧠 O que isso significa
+Decisão de peso. Pode ser impulso emocional ou reflexão genuína.
 
-**Se decidir conversar:**
-"${partnerName}, precisamos conversar sobre algo importante. Quando seria um bom momento?"
+### ⚠️ Risco
+Terminar no calor e arrepender depois. Ou ficar em sofrimento prolongado.
 
-**Se decidir terminar:**
-Faça pessoalmente, com respeito e clareza. Não desapareça (ghosting) e não termine por mensagem a menos que haja perigo.
+### 🧭 O que fazer agora
+Pergunte-se:
+1. Já tentamos resolver juntos?
+2. É situação ou caráter da pessoa?
+3. Estou triste com ele/ela ou comigo mesmo?
 
-Quer explorar alguma dessas opções mais a fundo?`;
+### 💬 Se decidir conversar
+"${partnerName}, precisamos conversar sobre algo importante. Quando seria um bom momento para você?"
+
+### 💬 Se decidir terminar
+"Vou ser sinciro contigo: isso não tá me fazendo bem e não faz mais sentido pra mim. Prefiro me afastar."
+
+### 🔒 Regra de ouro
+**Terminar é válido. Ficar sofrendo também é uma escolha.**
+
+### Próxima ação
+Não tome decisão hoje. Durma. Decida amanhã de manhã.`;
+  }
+  
+  // Carência / Conforto
+  if (lastMessage.includes("só me procura") || lastMessage.includes("quando precisa") || lastMessage.includes("conveniência")) {
+    return `### 📊 Leitura objetiva
+${partnerName} te procura em momentos específicos (crise, necessidade), não espontaneamente.
+
+### 🧠 O que isso significa
+**Isso é carência, não interesse real.** Você é apoio emocional, não escolha.
+
+### ⚠️ Risco
+Você virar terapeuta gratuito. Investir mais e receber migalhas.
+
+### 🧭 O que fazer agora
+1. Pare de responder imediatamente
+2. Reduza disponibilidade emocional
+3. Observe: ele/ela some quando está bem?
+
+### 💬 Se precisar estabelecer limite
+"Entendo que você tá passando por isso, mas não tô em posição de ajudar agora."
+
+### 🔒 Regra de ouro
+**Quem te procura só na crise, te usa, não te escolhe.**
+
+### Próxima ação
+Próxima vez que ${partnerName} procurar na crise: espere 4h antes de responder. Veja o que acontece.`;
   }
   
   // Default response
-  return `Agradeço por compartilhar isso comigo${userName ? `, ${userName}` : ""}. Entendo que cada relacionamento tem suas particularidades, e situações como essa com ${partnerName} requerem análise cuidadosa.
+  return `### 📊 Leitura objetiva
+Você descreveu uma situação com ${partnerName} que envolve comunicação e expectativas.
 
-**Análise:** Parece que você está lidando com uma dinâmica que envolve comunicação e expectativas não alinhadas.
+### 🧠 O que isso significa
+Há um desalinhamento entre o que você espera e o que recebe. Isso gera ansiedade.
 
-**Plano de Ação:**
-1. **Autoconhecimento primeiro:** O que essa situação desperta em você? Medo? Insegurança?
-2. **Perspectiva do outro:** Tente ver a situação pelos olhos de ${partnerName}. O que ele/ela pode estar sentindo?
-3. **Comunicação CNV:** Quando estiver calmo(a), expresse seus sentimentos usando "Eu" em vez de "Você"
+### ⚠️ Risco
+Agir por impulso, mandar textão emocional, reforçar dinâmica desfavorável.
 
-**Script sugerido:** 
-"Quando aconteceu X, eu me senti Y porque preciso de Z. Você poderia me ajudar a entender sua perspectiva?"
+### 🧭 O que fazer agora
+1. **Fato vs Interpretação**: O que de fato aconteceu vs o que você imaginou?
+2. **Regule primeiro**: Não decida no pico emocional
+3. **Perspectiva**: O que ${partnerName} pode estar sentindo?
 
-Quer que aprofundemos algum desses pontos?`;
+### 💬 Se precisar responder
+"Quando aconteceu X, eu me senti Y porque preciso de Z. Você pode me ajudar a entender sua perspectiva?"
+
+### 🔒 Regra de ouro
+**Nunca aumente investimento quando retorno está baixo.**
+
+### Próxima ação
+Descreva os FATOS (não interpretações) dos últimos 3 encontros com ${partnerName}.`;
 }
 
 export async function POST(req: Request) {
