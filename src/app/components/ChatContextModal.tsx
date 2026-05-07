@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, HTMLMotionProps } from "framer-motion";
 import {
   X,
   User,
@@ -14,6 +14,9 @@ import {
   Settings,
   Trash2,
 } from "lucide-react";
+
+// Helper component for motion div with proper typing
+const MotionDiv = motion.div as any;
 
 export interface ChatContext {
   userName: string;
@@ -105,14 +108,14 @@ export default function ChatContextModal({
     <AnimatePresence>
       {isOpen && (
         <>
-          <motion.div
+          <MotionDiv
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
             onClick={onClose}
           />
-          <motion.div
+          <MotionDiv
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -314,7 +317,7 @@ export default function ChatContextModal({
                 Salvar Contexto
               </button>
             </div>
-          </motion.div>
+          </MotionDiv>
         </>
       )}
     </AnimatePresence>
