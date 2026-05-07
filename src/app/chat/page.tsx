@@ -11,7 +11,20 @@ import {
   Sparkles,
   ShieldCheck,
   AlertCircle,
+  Settings,
+  Camera,
 } from "lucide-react";
+import ChatContextModal, { ChatContext } from "../components/ChatContextModal";
+
+const DEFAULT_CONTEXT: ChatContext = {
+  userName: "",
+  partnerName: "",
+  relationshipType: "",
+  situation: "",
+  desiredOutcome: "",
+  feelings: "",
+  photos: [],
+};
 
 export default function ChatPage() {
   // State Management
@@ -27,6 +40,8 @@ export default function ChatPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [credits, setCredits] = useState(0);
   const [isLoadingCredits, setIsLoadingCredits] = useState(true);
+  const [context, setContext] = useState<ChatContext>(DEFAULT_CONTEXT);
+  const [isContextModalOpen, setIsContextModalOpen] = useState(false);
 
   // Hooks
   const searchParams = useSearchParams();
@@ -63,7 +78,7 @@ export default function ChatPage() {
     }
   }, [searchParams]);
 
-  // Initialize user and load credits
+  // Initialize user, credits and context
   useEffect(() => {
     const storedUserId = localStorage.getItem("userId");
     if (storedUserId) {
@@ -71,6 +86,16 @@ export default function ChatPage() {
       loadCredits(storedUserId);
     } else {
       setIsLoadingCredits(false);
+    }
+
+    // Load saved context
+    const savedContext = localStorage.getItem("chatContext");
+    if (savedContext) {
+      try {
+        setContext(JSON.parse(savedContext));
+      } catch (e) {
+        console.error("Error loading context:", e);
+      }
     }
   }, []);
 
@@ -85,6 +110,15 @@ export default function ChatPage() {
   const handleBuyCredits = () => {
     router.push("/");
   };
+
+  // Handle saving context
+  const handleSaveContext = (newContext: ChatContext) => {
+    setContext(newContext);
+    localStorage.setItem("chatContext", JSON.stringify(newContext));
+  };
+
+  // Check if context has any data
+  const hasContext = context.userName || context.partnerName || context.situation;
 
   // Handle sending message
   const handleSend = async () => {
@@ -156,7 +190,7 @@ export default function ChatPage() {
       const deductData = await deductResponse.json();
       setCredits(deductData.remainingCredits || 0);
 
-      // Call chat API
+      // Call chat API with context
       const chatResponse = await fetch("/api/chat", {
         method: "POST",
         headers: {
@@ -167,6 +201,7 @@ export default function ChatPage() {
             role: m.role,
             content: m.content,
           })),
+          context: hasContext ? context : undefined,
         }),
       });
 
@@ -210,6 +245,23 @@ export default function ChatPage() {
 
         {/* Credits Display or Buy Button */}
         <div className="flex items-center space-x-2">
+          {/* Context indicator */}
+          {hasContext && (
+            <button
+              onClick={() => setIsContextModalOpen(true)}
+              className="hidden sm:flex items-center gap-1 px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-xs font-medium hover:bg-green-200 transition-colors"
+            >
+              <Settings className="w-3.5 h-3.5" />
+              Contexto ativo
+              {context.photos.length > 0 && (
+                <span className="flex items-center gap-0.5">
+                  <Camera className="w-3 h-3" />
+                  {context.photos.length}
+                </span>
+              )}
+            </button>
+          )}
+
           {userId ? (
             <div className="flex flex-col items-end">
               <div className="text-sm font-bold text-slate-800">
@@ -225,7 +277,17 @@ export default function ChatPage() {
               Comprar Créditos
             </button>
           )}
-          <div className="hidden sm:flex items-center space-x-2 text-slate-400 ml-4 pl-4 border-l border-slate-200">
+
+          {/* Settings button */}
+          <button
+            onClick={() => setIsContextModalOpen(true)}
+            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+            title="Configurar contexto"
+          >
+            <Settings className="w-5 h-5 text-slate-500" />
+          </button>
+
+          <div className="hidden sm:flex items-center space-x-2 text-slate-400 ml-2 pl-2 border-l border-slate-200">
             <ShieldCheck className="w-5 h-5" />
             <span className="text-xs font-medium">Privado & Seguro</span>
           </div>
@@ -369,6 +431,14 @@ export default function ChatPage() {
           ))}
         </motion.div>
       )}
+
+      {/* Context Modal */}
+      <ChatContextModal
+        isOpen={isContextModalOpen}
+        onClose={() => setIsContextModalOpen(false)}
+        context={context}
+        onSave={handleSaveContext}
+      />
     </div>
   );
 }
