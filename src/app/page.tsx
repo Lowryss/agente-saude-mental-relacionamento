@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Heart,
   ShieldCheck,
@@ -15,11 +16,39 @@ import {
   BrainCircuit,
   Zap,
   Loader2,
+  TestTube,
 } from "lucide-react";
 
 export default function LandingPage() {
+  const router = useRouter();
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState<string | null>(null);
+
+  const enterTestMode = async () => {
+    try {
+      setIsLoading("test");
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ tier: "test", testMode: true }),
+      });
+      const data = await res.json();
+      if (data.userId) {
+        localStorage.setItem("userId", data.userId);
+        localStorage.setItem("credits", String(data.credits));
+        router.push("/chat?payment=success");
+      } else {
+        throw new Error(data.error || "Erro ao entrar em modo de teste");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Erro ao entrar em modo de teste.");
+    } finally {
+      setIsLoading(null);
+    }
+  };
 
   const handleCheckout = async (tier: string) => {
     try {
@@ -349,6 +378,23 @@ export default function LandingPage() {
 
         <div className="max-w-md mx-auto mt-12 flex items-center justify-center gap-2 text-xs text-slate-400 font-medium">
           <Lock className="w-4 h-4" /> Pagamento 100% Seguro via Stripe
+        </div>
+
+        <div className="max-w-md mx-auto mt-6">
+          <button
+            onClick={enterTestMode}
+            disabled={isLoading !== null}
+            className="w-full bg-green-600/20 hover:bg-green-600/30 border border-green-500/50 disabled:opacity-50 text-green-400 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all"
+          >
+            {isLoading === "test" ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <>
+                <TestTube className="w-5 h-5" />
+                Modo de Teste (Grátis - 10 Créditos)
+              </>
+            )}
+          </button>
         </div>
       </section>
 

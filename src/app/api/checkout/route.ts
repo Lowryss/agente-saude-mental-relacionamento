@@ -31,6 +31,20 @@ export async function POST(req: Request) {
     // Tenta ler o corpo da requisição para ver qual plano foi escolhido
     const body = await req.json().catch(() => ({}));
     const tier = (body.tier as keyof typeof PLANS) || "premium";
+
+    // Modo de teste - não requer Stripe
+    if (body.testMode === true) {
+      const mockUserId = `test_user_${Date.now()}`;
+      const testCredits = 10; // Créditos gratuitos para teste
+
+      return NextResponse.json({
+        userId: mockUserId,
+        credits: testCredits,
+        tier: "test",
+        message: "Modo de teste ativado - créditos gratuitos concedidos",
+      });
+    }
+
     const plan = PLANS[tier] || PLANS.premium;
 
     const headers = req.headers;
