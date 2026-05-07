@@ -185,8 +185,12 @@ function getMockResponse(messages: any[], context?: ChatContext): string {
   const userName = context?.userName || "";
   const partnerName = context?.partnerName || "a pessoa";
   
-  // Saudação personalizada
-  if (lastMessage.includes("oi") || lastMessage.includes("olá") || lastMessage.includes("hello") || messages.length <= 2) {
+  // Conta apenas mensagens do usuário
+  const userMessages = messages.filter(m => m.role === "user");
+  const userMessageCount = userMessages.length;
+  
+  // Saudação personalizada - apenas na PRIMEIRA mensagem do usuário que é saudação
+  if (userMessageCount === 1 && (lastMessage.includes("oi") || lastMessage.includes("olá") || lastMessage.includes("hello") || lastMessage.includes("bom dia") || lastMessage.includes("boa tarde") || lastMessage.includes("boa noite"))) {
     return `### 📊 Leitura objetiva
 Você está começando uma conversa${userName ? `, ${userName}` : ""}. Estou aqui para ajudar a navegar a situação com ${partnerName}.
 
@@ -291,6 +295,53 @@ Pergunte-se:
 Não tome decisão hoje. Durma. Decida amanhã de manhã.`;
   }
   
+  // Distanciamento / Afastamento
+  if (lastMessage.includes("distanciando") || lastMessage.includes("sumiu") || lastMessage.includes("frio") || lastMessage.includes("mudou")) {
+    return `### 📊 Leitura objetiva
+${partnerName} está mais distante. Menos contato, menos proximidade emocional ou física.
+
+### 🧠 O que isso significa
+Pode ser: (1) problema externo dele/ela (trabalho, família), (2) perda de interesse, ou (3) ele/ela está processando algo internamente.
+
+### ⚠️ Risco
+Perseguir mais ainda afasta. Cobrar explicação agora gera defesa.
+
+### 🧭 O que fazer agora
+1. NÃO mande mensagem perguntando "o que aconteceu?"
+2. Observe por 48-72h sem iniciar contato
+3. Use esse tempo para você: amigos, hobbies, trabalho
+
+### 💬 Se ${partnerName} te procurar
+"Oi, sumido/a 😄 Tudo bem contigo?" (leve, sem cobrança)
+
+### 🔒 Regra de ouro
+**Quem se afasta, se afasta por razão própria. Perseguir não traz de volta.**
+
+### Próxima ação
+Liste 3 atividades que você ama fazer sozinho(a). Faça uma hoje.`;
+  }
+
+  // Mensagem curta genérica (mas não saudação)
+  if (userMessageCount <= 2 && lastMessage.length < 50 && !lastMessage.includes("?")) {
+    return `### 📊 Leitura objetiva
+Você disse "${messages[messages.length - 1]?.content}". Isso é um início de conversa sobre ${partnerName}.
+
+### 🧠 O que isso significa
+Você sente que algo precisa ser dito ou entendido, mas talvez não saiba por onde começar.
+
+### ⚠️ Risco
+Ficar paralisado(a) ou agir genérico demais.
+
+### 🧭 O que fazer agora
+Me conte mais. O que aconteceu exatamente nos últimos dias com ${partnerName}?
+
+### 🔒 Regra de ouro
+**Clareza vem de fatos, não de suposições.**
+
+### Próxima ação
+Descreva UMA situação específica (quando, onde, o que foi dito/feito).`;
+  }
+
   // Carência / Conforto
   if (lastMessage.includes("só me procura") || lastMessage.includes("quando precisa") || lastMessage.includes("conveniência")) {
     return `### 📊 Leitura objetiva
